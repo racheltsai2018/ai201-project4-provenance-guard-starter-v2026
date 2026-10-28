@@ -42,61 +42,61 @@ Two things worth knowing before you pick numbers:
   a **miss**.
 
 ---
-## 1.
+## 1. For the test set, the false positive rate has to be less than 5%.
 
 <!-- Your criterion. It must name a number. -->
 
 
 
-**Why this target:**
+**Why this target:** To ensure that the number of writing that are classified as AI-generated low, so not many people get falsely accused, the percentage should be low. In this case, the selected percentage is 5%.
 
 
 
 ---
 
-## 2.
+## 2. When running the test set, there will be at least one example for each label.
 
 <!-- Your criterion. -->
 
 
 
-**Why this target:**
+**Why this target:** To ensure that all three labels are reachable, there will be at least one example for each label. 
 
 
 
 ---
 
-## 3.
+## 3. All valid POST /appeal request that contains an valid content_id must update the audit logs to under_review and return a 200 OK response.
 
 <!-- Your criterion. -->
 
 
 
-**Why this target:**
+**Why this target:** When users submit an appeal request, there should be a way to let the users know that the request had been submitted successfully and is under review. This criteria ensures that will happen 100% of the time.
 
 
 
 ---
 
-## 4.
+## 4. When the text is missing, empty, or enormous, an HTTP error status should be returned.
 
 <!-- Your criterion. -->
 
 
 
-**Why this target:**
+**Why this target:** When the text is not valid, the error should be caught, and inform the user of this error. This will ensure that the program will not crash after receiving an invalid text. This criteria has to be followed every time an invalid text is submitted.
 
 
 
 ---
 
-## 5.
+## 5. Fully human written text should score below the 0.4 threshold, and fully AI-generated text should score above the 0.6 threshold.
 
 <!-- Your criterion. -->
 
 
 
-**Why this target:**
+**Why this target:** To ensure that the model is learning properly, all fully human text will below the 0.4 threshold. All AI-generated text will be above 0.6 threshold. For anything that is unsure will be between 0.4 and 0.6 threshold.
 
 
 
