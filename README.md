@@ -121,22 +121,25 @@
      two off the response, so leaving them out costs you next unit's
      diagnostics. -->
 
-```bash
-$ curl -X POST http://127.0.0.1:5000/submit \
-  -H "Content-Type: application/json" \
-  -d '{"text": "...", "creator_id": "..."}'
+```powershell
+curl.exe -X POST http://127.0.0.1:5000/submit -H "Content-Type: application/json" -d '{\"text\": \"The apparition of these faces in the crowd: Petals on a wet, black bough.\", \"creator_id\": \"rachel\"}'
 ```
 
 ```json
-
+{
+  "confidence": null,
+  "content_id": "1f67b3dc-f19e-47de-8c20-d5e94b7e3f6a",
+  "guess": "human",
+  "label": "pending",
+  "model_score": 0.1888,
+  "style_score": null
+}
 ```
 
 **An appeal**
 
-```bash
-$ curl -X POST http://127.0.0.1:5000/appeal \
-  -H "Content-Type: application/json" \
-  -d '{"content_id": "...", "reasoning": "..."}'
+```powershell
+curl.exe -X POST http://127.0.0.1:5000/appeal -H "Content-Type: application/json" -d '{\"content_id\": \"1f67b3dc-f19e-47de-8c20-d5e94b7e3f6a\", \"reasoning\": \"This is a famous poem written by human.\"}'
 ```
 
 ```json
