@@ -211,28 +211,36 @@ def submit():
         return jsonify({"error": "invalid_creator_id", "message": "'creator_id' must be a non-empty string."}), 400
 
     import detector
+    import scoring
+    import stylometry
 
     content_id = str(uuid.uuid4())
     model_score = detector.model_signal(text)
-    guess = "ai" if model_score >= 0.5 else "human"
+    style_score = stylometry.style_signal(text)
+    combined_score = scoring.combine_signals(model_score, style_score)
+    guess, _ = scoring.score_to_label(combined_score)
 
+    # Both signals go in the log next to the combined score, so a surprising
+    # result can be traced back to whichever signal caused it.
     audit.log_decision(
         content_id=content_id,
         creator_id=creator_id,
         guess=guess,
         model_score=model_score,
+        style_score=style_score,
+        combined_score=combined_score,
         status="decided",
     )
 
-    # confidence and label are placeholders until Milestones 4 and 5;
-    # style_score arrives with stylometry in Milestone 4.
+    # confidence and label are placeholders until Milestone 5.
     return jsonify({
         "content_id": content_id,
         "guess": guess,
         "confidence": None,
         "label": "pending",
         "model_score": model_score,
-        "style_score": None,
+        "style_score": style_score,
+        "combined_score": combined_score,
     })
 
 

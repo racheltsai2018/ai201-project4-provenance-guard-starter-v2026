@@ -57,6 +57,11 @@ DETECTOR_MAX_TOKENS = 400
 WEIGHT_MODEL_SIGNAL = 0.5
 WEIGHT_STYLE_SIGNAL = 0.5
 
+# When the two signals disagree by more than this, the combined score is capped
+# at SPLIT_CAP — inside "unsure" — so one signal alone can't make an AI call.
+DISAGREEMENT_GAP = 0.25
+SPLIT_CAP = 0.60
+
 
 # ─── Thresholds (Milestone 5) ────────────────────────────────────────────────
 # Where one label becomes another. Scores run 0.0 (confidently human) to 1.0

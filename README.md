@@ -38,7 +38,7 @@
 
 <!-- The path a submission takes, from arriving to the label a reader sees.
      Six or seven steps — this is the trace you wrote in Milestone 1. -->
-
+Provenance Guard is backend service, which checks whether the submitted poem is written by human or AI-generated. It starts with a user will submit a poem with a POST /submit request, a unique content_id will be generated and recorded in the audit log with the original text. Next, detector.py contains a model that analyzes the text, and stylometry.py measures the sentence length, word ratio, and puncutation variety. A score is then generated based on what is analyzed in detector.py and stylometry.py. Based on the score, the text will be labeled with one of the three labels. The three labels are ai, human, and unsure. If the user does not agree with the results, the user can also utilize POST /appeal to challenge that decision.
 
 
 ---
@@ -53,35 +53,35 @@
 
 ### Signal one — the model signal
 
-**What it measures:**
+**What it measures:** The model measures perplexity, which decides how predictable the text is. The higher the points the more predictable it is. 
 
-**Why that might differ between human and AI writing:**
+**Why that might differ between human and AI writing:** Based on the perplexity, it is turned into a score which meant how likely the text is AI generated. AI generated text are more likely to be predictable, so the perplexity will be low. High perplexity meant that more likely to be human generated.
 
-**What it can't see:**
+**What it can't see:** If the text written by human follow a specific format, it will be more likely that it is classified as AI generated.
 
 ### Signal two — the style signal
 
-**What it measures:**
+**What it measures:** The style signal measures the sentence length, vocabulary ratio, and punctuation density.
 
-**Why that might differ between human and AI writing:**
+**Why that might differ between human and AI writing:** AI-generated writing tends to be even, mid-length sentences with a narrow band of vocabular.
 
-**What it can't see:**
+**What it can't see:** The signal cannot read, so it has no idea what the text means. 
 
 ### The combining rule
 
 <!-- Write the rule in words, then give the numbers. What happens when the two
      signals disagree? -->
 
-**The rule:**
+**The rule:** To combine the scores, add the style signal score and model signal score together and divide by two. 
 
-**The numbers:**
+**The numbers:** The weights for both scores will be equal. In this case, it will be 0.5 model signal, and 0.5 style signal.
 
 **Where it lives:** `scoring.py::combine_signals`
 
 <!-- ⚠️ The grader checks your code against that line. If your rule lives
      somewhere else, say where. -->
 
-**A case where my two signals split, and what my rule does with it:**
+**A case where my two signals split, and what my rule does with it:** If the difference between the two score is greater than 0.25 then it will be labeled unsure. The reason is because the score will be capped at 0.6, so it will be less likely to produce the AI label, so it is better to label it as unsure.
 
 
 
