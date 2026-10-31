@@ -193,15 +193,15 @@ curl "http://127.0.0.1:5000/log?limit=2"
 
 **Moment 1**
 
-- *What I asked for:* 
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* I asked for help in completing the methods in app.py, stylometry.py, and scoring.py.
+- *What came back:* The methods are completed as I instructed it to.
+- *What I changed:* For some methods, the values are not what I planned or matched with what I had written in README, so I fixed it manually.
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* For the what the log shows afterward section, the command provided produces some extra data like the raw content, and other information from the HTML. I asked to fix that so only the revelant information shows.
+- *What came back:* The command that give the right content: (curl "http://127.0.0.1:5000/log?limit=2").Content
+- *What I changed:* Nothing was changed since it worked as intended.
 
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
