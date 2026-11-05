@@ -60,7 +60,7 @@ Two things worth knowing before you pick numbers:
 
 
 
-**Why this target:** To ensure that all three labels are reachable, there will be at least one example for each label. 
+**Why this target:** To prevent classification collapse, ensuring all three categorical output are reachable guarantees that our boundary threshold are actively splitting the scoring spectrum rather than sitting dead in code.  
 
 
 
@@ -72,7 +72,7 @@ Two things worth knowing before you pick numbers:
 
 
 
-**Why this target:** When users submit an appeal request, there should be a way to let the users know that the request had been submitted successfully and is under review. This criteria ensures that will happen 100% of the time.
+**Why this target:** To maintain an immutable audit trail and prevent user confusion, successful state transitions from decided to under_review must be explicitly acknowledged so downstream reviews know an item is actively contested.
 
 
 
@@ -84,7 +84,7 @@ Two things worth knowing before you pick numbers:
 
 
 
-**Why this target:** When the text is not valid, the error should be caught, and inform the user of this error. This will ensure that the program will not crash after receiving an invalid text. This criteria has to be followed every time an invalid text is submitted.
+**Why this target:** To protect the service from resource exhaustion and prevent unhandled server exceptsion, malformed boundaries must be intercepted early with explicit 400 client errors. 
 
 
 
