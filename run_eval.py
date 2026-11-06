@@ -16,9 +16,10 @@ about label coverage needs inputs across the score range.
 !! Three trials, and **your first signal runs a model, so identical input can
 score differently twice.** That's exactly why repeats matter here.
 
-This does the sending and the recording. It does not decide whether a trial
-passed — that depends on the criterion you wrote, so the Verdict column comes
-back blank.
+This does the sending and the recording. When a scenario names a "check",
+each trial is also judged automatically (PASS/FAIL) and the Verdict column is
+PASS only if all trials passed. An "appeal" scenario submits, appeals, and
+then reads /log to confirm the status moved to under_review.
 """
 
 import argparse
@@ -53,9 +54,88 @@ def bodies_for(scenario):
     if scenario.get("bodies"):
         return list(scenario["bodies"])
     return [
-        {"text": text, "creator_id": f"eval_{scenario['name'][:12]}_{i}"}
-        for i, text in enumerate(scenario["texts"], 1)
+        {"text": item["text"] if isinstance(item, dict) else item,
+         "creator_id": f"eval_{scenario['name'][:12]}_{i}"}
+        for i, item in enumerate(scenario["texts"], 1)
     ]
+
+
+def expectations(scenario):
+    """The "expect" value for each text (None for plain strings)."""
+    return [item.get("expect") if isinstance(item, dict) else None
+            for item in scenario.get("texts") or []]
+
+
+def run_appeal(requests, scenario, args, trial):
+    """Submit a text, appeal the content_id that comes back, read the log."""
+    spec = scenario["appeal"]
+    creator = f"eval_appeal_{trial}"
+    result = {"sent": spec["text"][:70]}
+    try:
+        sub = requests.post(f"{args.url}/submit",
+                            json={"text": spec["text"], "creator_id": creator},
+                            timeout=args.timeout)
+        content_id = (sub.json() if sub.content else {}).get("content_id")
+        result.update(submit_status=sub.status_code, content_id=content_id,
+                      guess=(sub.json() if sub.content else {}).get("guess"))
+        if not content_id:
+            result["error"] = "submit returned no content_id"
+            return [result]
+
+        app = requests.post(f"{args.url}/appeal",
+                            json={"content_id": content_id, "reasoning": spec["reasoning"]},
+                            timeout=args.timeout)
+        result.update(status=app.status_code,
+                      appeal_response=app.json() if app.content else {})
+
+        log = requests.get(f"{args.url}/log", timeout=args.timeout).json()
+        mine = [e for e in log.get("entries", []) if e.get("content_id") == content_id]
+        result["log_status"] = mine[-1].get("status") if mine else None
+    except Exception as exc:  # noqa: BLE001
+        result["error"] = f"{type(exc).__name__}: {exc}"
+    return [result]
+
+
+def judge(scenario, results):
+    """PASS / FAIL for one trial, according to the scenario's "check"."""
+    check = scenario.get("check")
+    if not check:
+        return " "
+    if any(r.get("error") for r in results) and check != "http_error":
+        return "FAIL (error)"
+
+    if check == "false_positive_rate":
+        fp = sum(r.get("guess") == "ai" for r in results)
+        rate = fp / len(results)
+        return f"{'PASS' if rate < 0.05 else 'FAIL'} ({fp}/{len(results)} = {rate:.0%})"
+
+    if check == "label_coverage":
+        seen = {r.get("guess") for r in results}
+        missing = {"human", "unsure", "ai"} - seen
+        return "PASS" if not missing else f"FAIL (missing {', '.join(sorted(missing))})"
+
+    if check == "appeal":
+        r = results[0]
+        ok = r.get("status") == 200 and r.get("log_status") == "under_review"
+        return "PASS" if ok else f"FAIL ({r.get('status')}, log={r.get('log_status')})"
+
+    if check == "http_error":
+        bad = [r for r in results if not (isinstance(r.get("status"), int) and r["status"] >= 400)]
+        return "PASS" if not bad else f"FAIL ({len(bad)}/{len(results)} not an error status)"
+
+    if check == "thresholds":
+        misses = 0
+        for r, expect in zip(results, expectations(scenario)):
+            score = r.get("confidence")
+            if score is None:
+                misses += 1
+            elif expect == "human" and not score < config.HUMAN_THRESHOLD:
+                misses += 1
+            elif expect == "ai" and not score > config.AI_THRESHOLD:
+                misses += 1
+        return "PASS" if not misses else f"FAIL ({misses}/{len(results)} on wrong side)"
+
+    return f"? unknown check '{check}'"
 
 
 def describe(body):
@@ -110,8 +190,16 @@ def main():
     for scenario in scenarios.SCENARIOS:
         print(f"\n{scenario['name']}  (criterion {scenario.get('criterion') or '—'})")
 
-        trials = []
+        trials, verdicts = [], []
         for trial in range(1, args.trials + 1):
+            if scenario.get("appeal"):
+                results = run_appeal(requests, scenario, args, trial)
+                trials.append(results)
+                verdicts.append(judge(scenario, results))
+                r = results[0]
+                print(f"  trial {trial}: appeal -> {r.get('status')}, "
+                      f"log={r.get('log_status')}   {verdicts[-1]}")
+                continue
             results = []
             for i, body in enumerate(bodies_for(scenario), 1):
                 preview = describe(body)
@@ -133,10 +221,11 @@ def main():
                                     "sent": preview})
 
             trials.append(results)
-            guesses = [r.get("guess") or "—" for r in results]
-            print(f"  trial {trial}: {', '.join(guesses)}")
+            verdicts.append(judge(scenario, results))
+            shown = [r.get("guess") or str(r.get("status")) for r in results]
+            print(f"  trial {trial}: {', '.join(shown)}   {verdicts[-1]}")
 
-        rows.append({"scenario": scenario, "trials": trials})
+        rows.append({"scenario": scenario, "trials": trials, "verdicts": verdicts})
 
     write_report(rows, args)
 
@@ -169,7 +258,11 @@ def write_report(rows, args):
         scenario = row["scenario"]
         number = scenario.get("criterion")
         name = f"{number}. {scenario['name']}" if number else scenario["name"]
-        lines.append(f"| {name} |  | {' | '.join([' '] * n)} |  |")
+        verdicts = row["verdicts"]
+        overall = ("PASS" if all(v.startswith("PASS") for v in verdicts)
+                   else "FAIL" if scenario.get("check") else " ")
+        lines.append(f"| {name} | {scenario.get('target', '')} | "
+                     f"{' | '.join(verdicts)} | {overall} |")
 
     lines += ["", "---", "", "## What actually came back", "",
               "Real output. Paste the relevant parts into your README — the rubric",

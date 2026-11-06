@@ -11,7 +11,7 @@ it down. `run_eval.py` runs everything here three times.
 Two are filled in as examples. Replace them with what your criteria actually
 need — these are a shape, not a set.
 
-A scenario carries **either** of these:
+A scenario carries **one** of these:
 
     "texts"   a list of strings. Each is sent as {"text": ..., "creator_id": ...}
               with a creator_id made up for you. Use this for most criteria.
@@ -20,52 +20,84 @@ A scenario carries **either** of these:
               when the malformed request IS the point — empty text, no `text`
               field at all, something enormous. A bad-input criterion needs it,
               because you cannot express "the field is missing" as a string.
+
+    "appeal"  {"text": ..., "reasoning": ...}. Each trial submits the text,
+              appeals the content_id that came back, then reads /log.
+
+Optional keys: "check" (which automatic verdict run_eval.py applies) and
+"target" (the pass condition, copied into the report table). A "texts" entry
+can also be {"text": ..., "expect": "human" | "ai"} for the threshold check.
 """
 
 SCENARIOS = [
     {
         "name": "my own writing",
         "criterion": 1,
-        # ⚠️ PUT YOUR OWN WRITING HERE. Not AI text, not a sample from the web —
-        # things you actually wrote. This is the criterion that matters most and
-        # it's meaningless with someone else's prose.
+        "check": "false_positive_rate",
+        "target": "< 5% of my own writing labelled ai",
+        # ⚠️ PUT YOUR OWN WRITING HERE. With only 2 texts, a single false
+        # positive is 50% — add more (ten is the usual number).
         "texts": [
-            "REPLACE ME with a paragraph you wrote yourself.",
-            "REPLACE ME with another one. Ten pieces is the usual number.",
+            "Today's weather is nice and cool with the temperature ranging from 50 F to 70 F. Around noon, the sun came out making it warm and cool outside. I would be nice if the weather stays like this not too cool and not too warm.",
+            "I was very excited to hear that iphone duo was coming out. However, it was also very disappointing to hear that Iphone Duo has a lot of problems. It was understandable since it is Apple's first foldable phone. However, as a fan of apple, it was also disappointing to hear that they released the phone when it has so many problems and is not ready to be released.",
         ],
     },
     {
         "name": "label coverage",
         "criterion": 2,
-        # Inputs spread across your score range, so you can check all three
-        # labels are actually reachable.
+        "check": "label_coverage",
+        "target": "human, unsure and ai each appear at least once",
         "texts": [
-            "REPLACE ME with something you're confident is AI-generated.",
-            "REPLACE ME with something you're confident is human-written.",
-            "REPLACE ME with something genuinely borderline.",
+            "As an artificial intelligence language model, I do not possess personal opinions or feelings.",
+            "I am unsure what to write. Macroons are delicious but hard to make. My favorite flavor is pistachio macroons.",
+            "The integration of modern software tools often presents unexpected test cases when testing.",
         ],
     },
-    # A bad-input criterion looks like this. Uncomment and adjust if that's one
-    # of your five — these are raw request bodies, sent exactly as written.
-    #
-    # {
-    #     "name": "bad input",
-    #     "criterion": 3,
-    #     "bodies": [
-    #         {"text": "", "creator_id": "eval_bad_empty"},
-    #         {"creator_id": "eval_bad_missing"},          # no text field at all
-    #         {"text": "word " * 50000, "creator_id": "eval_bad_huge"},
-    #         {"text": None, "creator_id": "eval_bad_null"},
-    #     ],
-    # },
-
-    # TODO: add what your remaining criteria need.
-    #
-    # A criterion about the appeal path can't be tested by sending text alone;
-    # it needs a submission first and then an appeal against the content_id
-    # that came back. You'll need to test that one by hand, or extend this file
-    # and run_eval.py to do it. Saying which you did is part of the write-up.
+    {
+        "name": "appeal status update",
+        "criterion": 3,
+        "check": "appeal",
+        "target": "200 OK and log status under_review",
+        # Each trial submits this text first to get a fresh, real content_id,
+        # then appeals it and reads the audit log back. (A hard-coded id stops
+        # working the moment the log is cleared.)
+        "appeal": {
+            "text": "I wrote this paragraph myself about my weekend hike and the view from the top.",
+            "reasoning": "I wrote this myself and can show my drafts.",
+        },
+    },
+    {
+        "name": "bad input handling",
+        "criterion": 4,
+        "check": "http_error",
+        "target": "every malformed request gets a 4xx/5xx status",
+        "bodies": [
+            {"creator_id": "eval_bad_missing"},                      # no text field
+            {"text": "", "creator_id": "eval_bad_empty"},            # empty
+            {"text": "   ", "creator_id": "eval_bad_blank"},         # whitespace only
+            {"text": None, "creator_id": "eval_bad_null"},           # null
+            {"text": "word " * 50000, "creator_id": "eval_bad_huge"},  # enormous
+        ],
+    },
+    {
+        "name": "threshold boundaries",
+        "criterion": 5,
+        "check": "thresholds",
+        "target": "human < 0.4, ai > 0.6",
+        # "expect" says which side of the thresholds each text must land on.
+        "texts": [
+            {"expect": "human", "text": "I am unsure what to write. Macroons are delicious but hard to make. My favorite flavor is pistachio macroons."},
+            {"expect": "human", "text": "Today's weather is nice and cool with the temperature ranging from 50 F to 70 F. Around noon, the sun came out making it warm and cool outside. I would be nice if the weather stays like this not too cool and not too warm."},
+            {"expect": "ai", "text": "As an artificial intelligence language model, I do not possess personal opinions or feelings."},
+            {"expect": "ai", "text": "In today's rapidly evolving digital landscape, organizations must leverage innovative solutions to remain competitive. By fostering a culture of continuous improvement and embracing cutting-edge technologies, businesses can unlock new opportunities, drive sustainable growth, and deliver exceptional value to their stakeholders."},
+        ],
+    },
 ]
+
+
+def text_of(item):
+    """A texts entry is either a plain string or {"text": ..., "expect": ...}."""
+    return item["text"] if isinstance(item, dict) else item
 
 
 def validate() -> list[str]:
@@ -83,12 +115,18 @@ def validate() -> list[str]:
 
         texts = scenario.get("texts")
         bodies = scenario.get("bodies")
+        appeal = scenario.get("appeal")
 
-        if texts and bodies:
+        if sum(bool(x) for x in (texts, bodies, appeal)) > 1:
             problems.append(
-                f"scenario {i} ('{scenario.get('name')}') has both texts and "
-                f"bodies — pick one"
+                f"scenario {i} ('{scenario.get('name')}') has more than one of "
+                f"texts / bodies / appeal — pick one"
             )
+            continue
+
+        if appeal:
+            if not isinstance(appeal, dict) or not appeal.get("text") or not appeal.get("reasoning"):
+                problems.append(f"scenario {i}: 'appeal' needs both 'text' and 'reasoning'")
             continue
 
         if bodies:
@@ -101,10 +139,13 @@ def validate() -> list[str]:
             continue
 
         if not texts:
-            problems.append(f"scenario {i} has no texts and no bodies")
+            problems.append(f"scenario {i} has no texts, bodies or appeal")
             continue
 
-        for j, text in enumerate(texts, 1):
+        for j, item in enumerate(texts, 1):
+            if isinstance(item, dict) and item.get("expect") not in ("human", "ai"):
+                problems.append(f"scenario {i}, text {j}: 'expect' must be 'human' or 'ai'")
+            text = text_of(item)
             if not str(text).strip():
                 problems.append(
                     f"scenario {i}, text {j} is empty — if an empty submission is what "

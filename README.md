@@ -353,16 +353,75 @@ For the entry by attacker_FP05 it made the most serious mistake because the text
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |
+| 1. my own writing | < 5% of my own writing labelled ai | FAIL (2/2 = 100%) | FAIL (2/2 = 100%) | FAIL (2/2 = 100%) | FAIL |
+| 2. label coverage | human, unsure and ai each appear at least once | FAIL (missing ai) | FAIL (missing ai) | FAIL (missing ai) | FAIL |
+| 3. appeal status update | 200 OK and log status under_review | PASS | PASS | PASS | PASS |
+| 4. bad input handling | every malformed request gets a 4xx/5xx status | FAIL (1/5 not an error status) | FAIL (1/5 not an error status) | FAIL (1/5 not an error status) | FAIL |
+| 5. threshold boundaries | human < 0.4, ai > 0.6 | FAIL (4/4 on wrong side) | FAIL (4/4 on wrong side) | FAIL (4/4 on wrong side) | FAIL |
 
 **Real output from one trial**, pasted as text, naming the file and function
 that produced it:
 
 ```json
+Criterion 1:
+{
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.7697499999999999,
+    "model_score": 0.6645,
+    "style_score": 0.875,
+    "label": "We think this was likely written with help from an AI tool. This is an automated guess and can be wrong \u2014 if you wrote it yourself, you can submit an appeal to ask for a person to review it.",
+    "sent": "Today's weather is nice and cool with the temperature ranging from 50 "
+  },
+
+Criterion 2:
+{
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.35665,
+    "model_score": 0.2793,
+    "style_score": 0.434,
+    "label": "We think this was probably written by a person.",
+    "sent": "As an artificial intelligence language model, I do not possess persona"
+},
+
+Criterion 3:
+{
+    "sent": "I wrote this paragraph myself about my weekend hike and the view from ",
+    "submit_status": 200,
+    "content_id": "c91e491b-db36-4d82-944b-94742e013048",
+    "guess": "unsure",
+    "status": 200,
+    "appeal_response": {
+      "appealed_at": "2026-11-06T06:52:37+00:00",
+      "content_id": "c91e491b-db36-4d82-944b-94742e013048",
+      "message": "Your appeal has been received and the decision is now under review.",
+      "status": "under_review"
+    },
+    "log_status": "under_review"
+  }
+
+Criterion 4:
+{
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "{\"creator_id\": \"eval_bad_missing\"}"
+  },
+
+Criterion 5:
+{
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.51545,
+    "model_score": 0.3309,
+    "style_score": 0.7,
+    "label": "We can't tell whether this was written by a person or with an AI tool. Plenty of writing people do themselves lands here, so this is not a finding against the author.",
+    "sent": "I am unsure what to write. Macroons are delicious but hard to make. My"
+},
 
 ```
 
@@ -382,6 +441,13 @@ that produced it:
 
      Look for a pattern. Five failures on one signal is one problem, not five. -->
 
+Criterion 1:
+
+Criterion 2:
+
+Criterion 4:
+
+Criterion 5:
 
 
 ---
