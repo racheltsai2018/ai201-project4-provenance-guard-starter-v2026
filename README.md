@@ -441,13 +441,13 @@ Criterion 5:
 
      Look for a pattern. Five failures on one signal is one problem, not five. -->
 
-Criterion 1:
+Criterion 1: Both of my own paragraphs were labelled ai. My weather paragraph signal one scored it 0.66 and signal two score 0.88 for a combined score of 0.77. The sentence length spread, punctuation density, and type token ration all rated the paragraph as AI-generated.
 
-Criterion 2:
+Criterion 2: For the "AI" sentence input, it was scored 0.28 for signal one and 0.09 for signal two, which means the sentence is human. The human input was labeled unsure, and the last input was labeled human when the correct label should be unsure since it was human + ai-generated text.
 
-Criterion 4:
+Criterion 4: The last input which is a large body of text with the word "word" in the sentence 5000 times, but it returned a 200 and was scored ai-generated. The other four inputs, which are empty, white space, null, and no text field, all returned 400, which is a correct response.
 
-Criterion 5:
+Criterion 5: Out of the 4 inputs, the 2 human written text were scored as AI. The 2 AI-generated text were score as human text.
 
 
 ---
