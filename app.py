@@ -207,6 +207,11 @@ def submit():
     # Reject bad input up front instead of crashing inside the model.
     if not isinstance(text, str) or not text.strip():
         return jsonify({"error": "invalid_text", "message": "'text' must be a non-empty string."}), 400
+    if len(text) > config.MAX_TEXT_CHARS:
+        return jsonify({
+            "error": "text_too_long",
+            "message": f"'text' must be at most {config.MAX_TEXT_CHARS} characters (got {len(text)}).",
+        }), 413
     if not isinstance(creator_id, str) or not creator_id.strip():
         return jsonify({"error": "invalid_creator_id", "message": "'creator_id' must be a non-empty string."}), 400
 

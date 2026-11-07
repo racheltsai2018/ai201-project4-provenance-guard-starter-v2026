@@ -46,6 +46,11 @@ DETECTOR_MODEL = os.getenv("AI201_DETECTOR_MODEL", "gpt2")
 # 300 words, which is enough for the signal to mean something.
 DETECTOR_MAX_TOKENS = 400
 
+# Submissions longer than this are rejected with 413 before any model runs.
+# ~10,000 characters is roughly 1,500-2,000 words: plenty for a real piece,
+# far below a 5,000x repeated-word flood.
+MAX_TEXT_CHARS = int(os.getenv("AI201_MAX_TEXT_CHARS", "5000"))
+
 
 # ─── Scoring (Milestone 4) ───────────────────────────────────────────────────
 # How much each signal counts toward the combined score.
